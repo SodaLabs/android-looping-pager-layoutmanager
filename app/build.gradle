@@ -1,0 +1,65 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-kapt'
+
+apply from: rootProject.file("gradleScripts/android_app_extension.gradle")
+apply from: rootProject.file("gradleScripts/version_extension.gradle")
+
+// Version
+def versionPropertiesFile = project.file("version.properties")
+def versionProperties = new Properties()
+versionProperties.load(new FileInputStream(versionPropertiesFile))
+
+android {
+
+    compileSdkVersion deps.build.compileSdkVersion
+    buildToolsVersion deps.build.buildToolsVersion
+
+    defaultConfig {
+        applicationId "co.sodalabs.pager.demo"
+
+        minSdkVersion deps.build.minSdkVersion
+        targetSdkVersion deps.build.targetSdkVersion
+
+        versionCode buildVersionCode(versionProperties.artifact_version)
+        versionName versionProperties.artifact_version
+
+        multiDexEnabled true
+        vectorDrawables.useSupportLibrary = true
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    // Dependency on a local library module
+    implementation project(':pager')
+
+    // Dependency on local binaries
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    // Android
+    implementation deps.androidx.appcompat
+    implementation deps.androidx.multidex
+    implementation deps.androidx.coreKtx
+    implementation deps.androidx.recyclerView
+    implementation deps.androidx.constraintLayout
+
+    // Kotlin
+    implementation deps.kotlin.stdlibJdk7
+
+    // Tracking
+    implementation deps.tracking.timber
+
+    androidTestImplementation deps.test.runner
+    androidTestImplementation deps.test.espresso.core
+
+    testImplementation deps.test.junit
+}

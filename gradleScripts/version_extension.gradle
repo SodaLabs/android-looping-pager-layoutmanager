@@ -1,0 +1,43 @@
+rootProject.ext {
+
+    isCI = {
+        return 'true' == System.getenv('CI')
+    }
+
+    buildVersionCode = { version ->
+        def majorMinorBuild = version.tokenize(".")
+        def vCode = 0
+        def powerOfTen = 1
+        // This multiplier defines the MAX value that any one of the semantic version codes can have
+        // For example, we will never allow 1.1.10323, instead we would increase to 1.2.0
+        def multiplier = 1000
+
+        majorMinorBuild.reverse().eachWithIndex() { obj, i ->
+            def semanticVersionPart = obj.toInteger()
+
+            // Accumulate the version code
+            vCode += (semanticVersionPart * powerOfTen)
+
+            // Multiple up to group the semantic versioning parts
+            powerOfTen *= multiplier
+        }
+
+        logger.info("Build version code [" + vCode + "] from version name [" + version + "].")
+
+        return vCode
+    }
+
+    // Get the last Git Short Hash
+    getGitHash = { ->
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    }
+
+    getDateOfBuild = { -> // ISO 8601 time format
+        return new Date().format("yyyy-MM-dd'T'HH:mm'Z'").toString().trim()
+    }
+}

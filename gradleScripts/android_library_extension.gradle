@@ -1,0 +1,41 @@
+apply from: rootProject.file("gradleScripts/version_extension.gradle")
+
+// Version
+def versionPropertiesFile = project.file("version.properties")
+def versionProperties = new Properties()
+versionProperties.load(new FileInputStream(versionPropertiesFile))
+
+android.libraryVariants.all { variant ->
+    def isDebug = variant.getBuildType().isDebuggable()
+    def appName = versionProperties.artifact_name
+
+    variant.outputs.all { output ->
+        if (isDebug) {
+            outputFileName = "${appName}-${output.baseName}-${versionProperties.artifact_version}-${getGitHash()}.aar"
+        } else {
+            outputFileName = "${appName}-${output.baseName}-${versionProperties.artifact_version}.aar"
+        }
+    }
+}
+
+android.libraryVariants.all { variant ->
+    variant.assembleProvider.configure {
+        it.doLast {
+            if (variant.mappingFile != null && variant.mappingFile.exists()) {
+                def isDebug = variant.getBuildType().isDebuggable()
+                def mappingFileName = "$archivesBaseName-$variant.baseName-mapping.txt"
+                (new File(variant.mappingFile.parent, mappingFileName)).delete()
+
+                def appName = versionProperties.artifact_name
+
+                if (isDebug) {
+                    variant.mappingFile.renameTo(variant.mappingFile.parent +
+                        "/$appName-$variant.baseName-${variant.versionName}-${getGitHash()}-mapping.txt")
+                } else {
+                    variant.mappingFile.renameTo(variant.mappingFile.parent +
+                        "/$appName-$variant.baseName-${variant.versionName}-mapping.txt")
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,18 @@
+apply plugin: 'pmd'
+
+task pmd(type: Pmd) {
+    ignoreFailures = false
+    ruleSetFiles = files(rootProject.file("gradleScripts/pmd-ruleset.xml").canonicalPath)
+    ruleSets = []
+
+    source 'src'
+    include '**/*.java'
+    exclude '**/gen/**'
+
+    reports {
+        xml.enabled = false
+        html.enabled = true
+        xml.setDestination(file("$project.buildDir/reports/pmd/pmd.xml"))
+        html.setDestination(file("$project.buildDir/reports/pmd/pmd.html"))
+    }
+}
