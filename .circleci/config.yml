@@ -1,0 +1,166 @@
+version: 2
+
+jobs:
+  checkout-cache:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      # - run:
+      #     name: Download Keystore
+      #     command: echo $RELEASE_KEYSTORE_BASE64 | base64 --decode > build.keystore
+      # - run:
+      #     name: Create keystore.properies
+      #     command: printf 'releaseKeyAlias=%s\nreleaseKeyPassword=%s\nreleaseKeyStore=%s\nreleaseStorePassword=%s\n'
+      #       $RELEASE_KEY_ALIAS $RELEASE_KEY_PASSWORD build.keystore $RELEASE_STORE_PASSWORD
+      #       > keystore.properties
+      - run:
+          name: Download dependencies
+          command: ./gradlew androidDependencies --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - save_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+          paths:
+            - ~/.gradle
+            - ~/.bundle
+      #     - ~/project/keystore.properties
+      #     - ~/project/build.keystore
+
+  test-lint:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Run Lint Test
+          command: ./gradlew pmd ktlintCheck --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+
+  test-unit-test:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Run Unit Test
+          command: ./gradlew test --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - store_test_results:
+          path: pager/build/test-results
+
+  test-proguard:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Test ProGuard
+          command: ./gradlew pager:assembleRelease --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - store_artifacts:
+          path: pager/build/outputs/mapping/release
+
+  build-demo-debug:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Build APK Updater (Debug)
+          command: ./gradlew :app:assembleDebug --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - store_artifacts:
+          path: app/build/outputs/apk/debug
+
+  build-library-debug:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Build APK Updater (Debug)
+          command: ./gradlew :pager:assembleDebug --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - store_artifacts:
+          path: pager/build/outputs/aar/debug
+
+  build-library-release:
+    working_directory: ~/project
+    docker:
+      - image: circleci/android:api-28-alpha
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xms256m -Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+    steps:
+      - checkout
+      - restore_cache:
+          key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Build APK Updater (Release)
+          command: ./gradlew :pager:assembleRelease --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - run:
+          name: Install FastLane
+          command: |
+            gem update bundler
+            bundle install
+      - run:
+          name: Release to Github
+          command: fastlane releaseGithub
+      - store_artifacts:
+          path: pager/build/outputs/aar/release
+
+workflows:
+  version: 2
+  robot:
+    jobs:
+      - checkout-cache
+      - test-lint:
+          requires:
+            - checkout-cache
+      - test-unit-test:
+          requires:
+            - checkout-cache
+      - test-proguard:
+          requires:
+            - checkout-cache
+      - build-demo-debug:
+          requires:
+            - test-lint
+            - test-unit-test
+            - test-proguard
+      - build-library-debug:
+          requires:
+            - test-lint
+            - test-unit-test
+            - test-proguard
+      - build-library-release:
+          filters:
+            branches:
+              only: master
+          requires:
+            - test-lint
+            - test-unit-test
+            - test-proguard

@@ -1,0 +1,15 @@
+# This is a comment.
+# Each line is a file pattern followed by one or more owners.
+
+# This owner will be the default owner for everything in
+# the repo. Unless a later match takes precedence,
+# @sodalabs/engineering will be requested for
+# review when someone opens a pull request.
+*       @sodalabs/engineering
+
+# Order is important; the last matching pattern takes the most
+# precedence. When someone opens a pull request that only
+# modifies JS files, only @godlike0108 and not the global
+# owner(s) will be requested for a review.
+
+*.js    @godlike0108 @kevinmmarlow @boyw165

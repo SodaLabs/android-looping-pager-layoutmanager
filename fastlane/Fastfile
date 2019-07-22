@@ -30,6 +30,9 @@ platform :android do
       change_log = sh("git log --pretty=format:\"#{pretty_format}\" #{last_tag}..HEAD --no-merges")
 
       artifacts = []
+      # The artifacts for library module
+      artifacts = artifacts.concat(Dir.glob("**/*.aar"))
+      # The artifacts for application module
       artifacts = artifacts.concat(Dir.glob("**/*.apk"))
       artifacts = artifacts.concat(Dir.glob("**/*-mapping.txt"))
       artifacts = artifacts.map { |file| "#{pwd}/#{file}" }
