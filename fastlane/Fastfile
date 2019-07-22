@@ -46,15 +46,15 @@ platform :android do
       artifacts = artifacts.concat(Dir.glob("**/*-mapping.txt"))
       artifacts = artifacts.map { |file| "#{pwd}/#{file}" }
 
-      # github_release = set_github_release(
-      #   repository_name: "sodalabs/android-looping-pager-layoutmanager",
-      #   api_token: ENV["GITHUB_API_TOKEN"],
-      #   name: this_tag,
-      #   tag_name: this_tag,
-      #   description: change_log,
-      #   commitish: "master",
-      #   upload_assets: artifacts
-      # )
+      github_release = set_github_release(
+        repository_name: "sodalabs/android-looping-pager-layoutmanager",
+        api_token: ENV["GITHUB_API_TOKEN"],
+        name: this_tag,
+        tag_name: this_tag,
+        description: change_log,
+        commitish: "master",
+        upload_assets: artifacts
+      )
     end
   end
 end
