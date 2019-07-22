@@ -17,7 +17,7 @@ internal fun isViewVisibleInParent(
     parentRight: Int
 ): Boolean {
     return (viewLeft >= parentLeft && viewLeft <= parentRight) ||
-            (viewRight >= parentLeft && viewRight <= parentRight)
+        (viewRight >= parentLeft && viewRight <= parentRight)
 }
 
 internal fun findShortestDirectionalDistance(
@@ -43,12 +43,9 @@ internal fun Int.constrainedBy(
 ): Int {
     var modified = this
 
-    while (modified < 0) {
+    modified %= count
+    if (modified < 0) {
         modified += count
-    }
-
-    if (this >= count) {
-        modified %= count
     }
 
     return modified
