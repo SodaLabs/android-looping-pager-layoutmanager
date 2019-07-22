@@ -34,12 +34,6 @@ allprojects {
         google()
         mavenCentral()
         jcenter()
-        maven {
-            url "https://jitpack.io"
-            credentials {
-                username(deps.build.ci ? System.getenv("JITPACK_API_KEY") : authToken)
-            }
-        }
     }
 
     // The Gradle task: ktlintFormat

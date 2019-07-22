@@ -87,7 +87,7 @@ jobs:
       - restore_cache:
           key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
       - run:
-          name: Build APK Updater (Debug)
+          name: Build Demo App (Debug)
           command: ./gradlew :app:assembleDebug --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
       - store_artifacts:
           path: app/build/outputs/apk/debug
@@ -103,7 +103,7 @@ jobs:
       - restore_cache:
           key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
       - run:
-          name: Build APK Updater (Debug)
+          name: Build Pager Library (Debug)
           command: ./gradlew :pager:assembleDebug --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
       - store_artifacts:
           path: pager/build/outputs/aar/debug
@@ -119,8 +119,11 @@ jobs:
       - restore_cache:
           key: jars-{{ checksum "build.gradle" }}-{{ checksum "gradleScripts/dependencies.gradle" }}-{{ checksum ".circleci/config.yml" }}-{{ checksum "Gemfile.lock" }}
       - run:
-          name: Build APK Updater (Release)
+          name: Build Pager Library (Release)
           command: ./gradlew :pager:assembleRelease --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
+      - run:
+          name: Build Demo (Debug)
+          command: ./gradlew :app:assembleDebug --no-daemon -Pkotlin.incremental=false --max-workers=2 --stacktrace
       - run:
           name: Install FastLane
           command: |
