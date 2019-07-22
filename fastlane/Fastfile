@@ -23,8 +23,8 @@ platform :android do
       pwd = sh('pwd').strip
 
       # Try Linux sed first and fallback to gsed for Mac if Linux sed doesn't work.
-      version = sh('grep "version" pager/version.properties | sed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'')
-      # version = sh('grep "version" pager/version.properties | gsed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'')
+      version = sh('grep "version" pager/version.properties | sed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'').strip
+      # version = sh('grep "version" pager/version.properties | gsed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'').strip
       last_tag = sh("git describe --abbrev=0 --tags").strip unless ''
       this_tag = "v#{version}"
       
