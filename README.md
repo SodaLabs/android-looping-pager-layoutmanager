@@ -10,11 +10,30 @@ A `RecyclerView.LayoutManager` library enabling you the looping pager layout (co
 
 ### Gradle
 
+#### Step 1
+
+Add Jitpack to the dependency repositories:
+
+```
+// In root build.gradle
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+     }
+}
+```
+
+#### Step 2
+
+Add dependency to your project:
+
 [![](https://jitpack.io/v/sodalabs/android-looping-pager-layoutmanager.svg)](https://jitpack.io/#sodalabs/android-looping-pager-layoutmanager)
 
 ```
+// In application/library module's build.gradle
 dependencies {
-    implementation 'com.github.sodalabs:android-looping-pager-layoutmanager:x.x.x'
+    implementation 'com.github.sodalabs:android-looping-pager-layoutmanager:v?.?.?' // Note prefix "v" is necessary!
 }
 ```
 
