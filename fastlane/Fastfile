@@ -18,16 +18,25 @@ default_platform(:android)
 platform :android do
 
   desc "Submit the artifacts (APK and Mapping) to Github"
-  lane :releaseGithub do
+  lane :releaseGithubForPagerLibrary do
     Dir.chdir ".." do
       pwd = sh('pwd').strip
 
-      version = sh('grep "version" version.properties | sed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'').strip
-      last_tag = sh("git describe --abbrev=0 --tags").strip
+      # Try Linux sed first and fallback to gsed for Mac if Linux sed doesn't work.
+      version = sh('grep "version" pager/version.properties | sed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'')
+      # version = sh('grep "version" pager/version.properties | gsed -nre \'s/^[^0-9]*(([0-9]+\.)*[0-9]+).*/\1/p\'')
+      last_tag = sh("git describe --abbrev=0 --tags").strip unless ''
       this_tag = "v#{version}"
+      
+      puts "last_tag: \"#{last_tag}\", this_tag: \"#{this_tag}\""
 
       pretty_format = "### **%s**%n###### %h %an - _%aD_%n%n%b"
-      change_log = sh("git log --pretty=format:\"#{pretty_format}\" #{last_tag}..HEAD --no-merges")
+      change_log = ''
+      if last_tag.nil?
+        change_log = sh("git log --pretty=format:\"#{pretty_format}\" --no-merges")
+      else
+        change_log = sh("git log --pretty=format:\"#{pretty_format}\" #{last_tag}..HEAD --no-merges")
+      end
 
       artifacts = []
       # The artifacts for library module
@@ -37,15 +46,15 @@ platform :android do
       artifacts = artifacts.concat(Dir.glob("**/*-mapping.txt"))
       artifacts = artifacts.map { |file| "#{pwd}/#{file}" }
 
-      github_release = set_github_release(
-        repository_name: "sodalabs/android-looping-pager-layoutmanager",
-        api_token: ENV["GITHUB_API_TOKEN"],
-        name: this_tag,
-        tag_name: this_tag,
-        description: change_log,
-        commitish: "master",
-        upload_assets: artifacts
-      )
+      # github_release = set_github_release(
+      #   repository_name: "sodalabs/android-looping-pager-layoutmanager",
+      #   api_token: ENV["GITHUB_API_TOKEN"],
+      #   name: this_tag,
+      #   tag_name: this_tag,
+      #   description: change_log,
+      #   commitish: "master",
+      #   upload_assets: artifacts
+      # )
     end
   end
 end

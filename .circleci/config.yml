@@ -127,8 +127,8 @@ jobs:
             gem update bundler
             bundle install
       - run:
-          name: Release to Github
-          command: fastlane releaseGithub
+          name: Release Pager Library to Github
+          command: fastlane releaseGithubForPagerLibrary
       - store_artifacts:
           path: pager/build/outputs/aar/release
 

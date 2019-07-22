@@ -16,9 +16,9 @@ or alternatively using `brew cask install fastlane`
 
 # Available Actions
 ## Android
-### android releaseGithub
+### android releaseGithubForPagerLibrary
 ```
-fastlane android releaseGithub
+fastlane android releaseGithubForPagerLibrary
 ```
 Submit the artifacts (APK and Mapping) to Github
 
