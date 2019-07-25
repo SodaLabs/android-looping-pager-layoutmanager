@@ -19,6 +19,8 @@ open class LoopingPagerLayoutManager :
 
     protected var fixedChildWidth: Int = 0
 
+    protected var hostRecyclerView: RecyclerView? = null
+
     override fun canScrollVertically(): Boolean = false
     override fun canScrollHorizontally(): Boolean = true
     override fun isAutoMeasureEnabled(): Boolean = true
@@ -31,12 +33,19 @@ open class LoopingPagerLayoutManager :
         )
     }
 
+    override fun onAttachedToWindow(view: RecyclerView?) {
+        super.onAttachedToWindow(view)
+        hostRecyclerView = view
+    }
+
     override fun onDetachedFromWindow(
         view: RecyclerView,
         recycler: RecyclerView.Recycler
     ) {
-        super.onDetachedFromWindow(view, recycler)
         removeAllViews()
+        hostRecyclerView = null
+
+        super.onDetachedFromWindow(view, recycler)
     }
 
     override fun onLayoutChildren(
@@ -44,6 +53,12 @@ open class LoopingPagerLayoutManager :
         state: RecyclerView.State
     ) {
         ensureMainThread()
+
+        // Ignore layout request while it's scrolling.
+        val scrollState = hostRecyclerView?.scrollState ?: RecyclerView.SCROLL_STATE_IDLE
+        if (scrollState != RecyclerView.SCROLL_STATE_IDLE) {
+            return
+        }
 
         // Use the pending start position if it's present.
         if (pendingStartPosition != RecyclerView.NO_POSITION) {
