@@ -13,7 +13,7 @@ open class LoopingPagerLayoutManager :
     RecyclerView.LayoutManager(),
     RecyclerView.SmoothScroller.ScrollVectorProvider {
 
-    protected var pendingStartPosition = RecyclerView.NO_POSITION
+    protected var pendingStartPosition = 0
     protected var startPosition: Int = 0
     protected var endPosition: Int = 0
 
@@ -48,6 +48,12 @@ open class LoopingPagerLayoutManager :
         super.onDetachedFromWindow(view, recycler)
     }
 
+    private var scrollState: Int = RecyclerView.SCROLL_STATE_IDLE
+
+    override fun onScrollStateChanged(state: Int) {
+        scrollState = state
+    }
+
     override fun onLayoutChildren(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State
@@ -55,61 +61,64 @@ open class LoopingPagerLayoutManager :
         ensureMainThread()
 
         // Ignore layout request while it's scrolling.
-        val scrollState = hostRecyclerView?.scrollState ?: RecyclerView.SCROLL_STATE_IDLE
+        val scrollState = hostRecyclerView?.scrollState ?: return
         if (scrollState != RecyclerView.SCROLL_STATE_IDLE) {
             return
         }
 
         // Use the pending start position if it's present.
-        if (pendingStartPosition != RecyclerView.NO_POSITION) {
+        if (pendingStartPosition != RecyclerView.NO_POSITION &&
+            itemCount > 0
+        ) {
+            println("LoopingPagerLayoutManager layout all the children!")
             startPosition = pendingStartPosition
             endPosition = pendingStartPosition
             // Invalidate the pending position.
             pendingStartPosition = RecyclerView.NO_POSITION
-        }
 
-        // Remove all the children views.
-        detachAndScrapAttachedViews(recycler)
+            // Remove all the children views.
+            removeAndRecycleAllViews(recycler)
 
-        // Then construct the new ones.
-        val parentRight = width - paddingRight
-        var left = paddingLeft
-        var right: Int
-        val top = paddingTop
-        val bottom = height - paddingBottom
-        val itemCount = state.itemCount
-        val startPosition = this.startPosition
-        var endPosition = startPosition
-        for (i in 0 until itemCount) {
-            if (left >= parentRight) {
-                break
+            // Then construct the new ones.
+            val parentRight = width - paddingRight
+            var left = paddingLeft
+            var right: Int
+            val top = paddingTop
+            val bottom = height - paddingBottom
+            val itemCount = state.itemCount
+            val startPosition = this.startPosition
+            var endPosition = startPosition
+            for (i in 0 until itemCount) {
+                if (left >= parentRight) {
+                    break
+                }
+
+                // Constraint the position
+                endPosition = startPosition + i
+                endPosition = endPosition.constrainedBy(itemCount)
+
+                // Get view on the position from the recycler.
+                val view = recycler.getViewForPosition(endPosition)
+                // Measure and layout child view.
+                measureChildWithMargins(view, 0, 0)
+                addView(view, i)
+
+                val viewWidth = getDecoratedMeasuredWidth(view)
+                right = left + viewWidth
+                layoutDecorated(view, left, top, right, bottom)
+
+                // Cache the first child view width as the fixed child width.
+                if (fixedChildWidth == 0) {
+                    fixedChildWidth = viewWidth
+                }
+
+                // Advance the left side.
+                left = right
             }
 
-            // Constraint the position
-            endPosition = startPosition + i
-            endPosition = endPosition.constrainedBy(itemCount)
-
-            // Get view on the position from the recycler.
-            val view = recycler.getViewForPosition(endPosition)
-            addView(view, i)
-
-            // Measure and layout child view.
-            measureChildWithMargins(view, 0, 0)
-            val viewWidth = getDecoratedMeasuredWidth(view)
-            right = left + viewWidth
-            layoutDecorated(view, left, top, right, bottom)
-
-            // Cache the first child view width as the fixed child width.
-            if (fixedChildWidth == 0) {
-                fixedChildWidth = viewWidth
-            }
-
-            // Advance the left side.
-            left = right
+            // Update the end position
+            this.endPosition = endPosition
         }
-
-        // Update the end position
-        this.endPosition = endPosition
     }
 
     override fun scrollHorizontallyBy(
@@ -152,8 +161,8 @@ open class LoopingPagerLayoutManager :
 
                     val child = recycler.getViewForPosition(startPosition)
                     // TODO: Optimization as add views only when they are visible
-                    addView(child, 0)
                     measureChildWithMargins(child, 0, 0)
+                    addView(child, 0)
                     val childWidth = getDecoratedMeasuredWidth(child)
                     val left = right - childWidth
                     layoutDecorated(child, left, parentTop, right, parentBottom)
@@ -173,8 +182,8 @@ open class LoopingPagerLayoutManager :
 
                     val child = recycler.getViewForPosition(endPosition)
                     // TODO: Optimization as add views only when they are visible
-                    addView(child)
                     measureChildWithMargins(child, 0, 0)
+                    addView(child)
                     val childWidth = getDecoratedMeasuredWidth(child)
                     val right = left + childWidth
                     layoutDecorated(child, left, parentTop, right, parentBottom)
