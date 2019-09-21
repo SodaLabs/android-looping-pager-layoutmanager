@@ -4,20 +4,31 @@ package co.sodalabs.pager
 
 import android.graphics.PointF
 import android.os.Parcelable
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.sign
 
+private const val TAG = "LoopingPager"
+
 open class LoopingPagerLayoutManager :
     RecyclerView.LayoutManager(),
     RecyclerView.SmoothScroller.ScrollVectorProvider {
 
-    protected var pendingStartPosition = RecyclerView.NO_POSITION
+    /**
+     * A new position for overriding the entire layout.
+     * @see [scrollToPosition]
+     */
+    protected var pendingStartPosition = 0
+    /**
+     * The index of most left item in the adapter's item list.
+     */
     protected var startPosition: Int = 0
+    /**
+     * The index of most right item in the adapter's item list.
+     */
     protected var endPosition: Int = 0
-
-    protected var fixedChildWidth: Int = 0
 
     protected var hostRecyclerView: RecyclerView? = null
 
@@ -48,68 +59,92 @@ open class LoopingPagerLayoutManager :
         super.onDetachedFromWindow(view, recycler)
     }
 
+    private var scrollState: Int = RecyclerView.SCROLL_STATE_IDLE
+
+    override fun onScrollStateChanged(state: Int) {
+        scrollState = state
+    }
+
     override fun onLayoutChildren(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State
     ) {
         ensureMainThread()
 
+        // FIXME: What case is that the layout is triggered while the RV is
+        // FIXME: also scrolling?
         // Ignore layout request while it's scrolling.
-        val scrollState = hostRecyclerView?.scrollState ?: RecyclerView.SCROLL_STATE_IDLE
-        if (scrollState != RecyclerView.SCROLL_STATE_IDLE) {
+        // val scrollState = hostRecyclerView?.scrollState ?: return
+        // if (scrollState != RecyclerView.SCROLL_STATE_IDLE) {
+        //     return
+        // }
+        val itemCount = state.itemCount
+        if (itemCount <= 0) {
+            removeAndRecycleAllViews(recycler)
             return
         }
 
-        // Use the pending start position if it's present.
+        // If the pending position is present, that means we need to override the
+        // entire current layout.
         if (pendingStartPosition != RecyclerView.NO_POSITION) {
+            Log.v(TAG, "LoopingPagerLayoutManager layout all the children!")
             startPosition = pendingStartPosition
             endPosition = pendingStartPosition
             // Invalidate the pending position.
             pendingStartPosition = RecyclerView.NO_POSITION
+
+            // Remove all the children views.
+            removeAndRecycleAllViews(recycler)
         }
 
-        // Remove all the children views.
-        detachAndScrapAttachedViews(recycler)
-
-        // Then construct the new ones.
         val parentRight = width - paddingRight
-        var left = paddingLeft
-        var right: Int
+        var left = if (childCount == 0) {
+            paddingLeft
+        } else {
+            val leftMostView = getChildAt(0)
+                ?: throw NullPointerException("Cannot find the view at '0'")
+            leftMostView.left
+        }
         val top = paddingTop
         val bottom = height - paddingBottom
-        val itemCount = state.itemCount
         val startPosition = this.startPosition
         var endPosition = startPosition
-        for (i in 0 until itemCount) {
-            if (left >= parentRight) {
-                break
-            }
 
-            // Constraint the position
-            endPosition = startPosition + i
+        // Layout the child
+        var childIndex = 0
+        while (left < parentRight) {
+            // Find out the right bound.
+            endPosition = startPosition + childIndex
             endPosition = endPosition.constrainedBy(itemCount)
 
-            // Get view on the position from the recycler.
-            val view = recycler.getViewForPosition(endPosition)
-            addView(view, i)
-
+            val view = if (childIndex < childCount) {
+                // Give the existing view.
+                getChildAt(childIndex) ?: throw IllegalStateException("Cannot find view at '$childIndex'")
+            } else {
+                // Give new view on the position from the recycler.
+                val newView = recycler.getViewForPosition(endPosition)
+                addView(newView, childIndex)
+                newView
+            }
+            // Note: Still need to measure the view cause the child view has changed.
             // Measure and layout child view.
             measureChildWithMargins(view, 0, 0)
+            // Then layout the child view.
             val viewWidth = getDecoratedMeasuredWidth(view)
-            right = left + viewWidth
+            val right = left + viewWidth
             layoutDecorated(view, left, top, right, bottom)
 
-            // Cache the first child view width as the fixed child width.
-            if (fixedChildWidth == 0) {
-                fixedChildWidth = viewWidth
-            }
-
+            // Go to next child.
+            ++childIndex
             // Advance the left side.
             left = right
         }
 
         // Update the end position
         this.endPosition = endPosition
+
+        // Recycle the views and then calculate the new position
+        recycleViewsOutOfBounds(recycler, itemCount)
     }
 
     override fun scrollHorizontallyBy(
@@ -152,8 +187,8 @@ open class LoopingPagerLayoutManager :
 
                     val child = recycler.getViewForPosition(startPosition)
                     // TODO: Optimization as add views only when they are visible
-                    addView(child, 0)
                     measureChildWithMargins(child, 0, 0)
+                    addView(child, 0)
                     val childWidth = getDecoratedMeasuredWidth(child)
                     val left = right - childWidth
                     layoutDecorated(child, left, parentTop, right, parentBottom)
@@ -173,8 +208,8 @@ open class LoopingPagerLayoutManager :
 
                     val child = recycler.getViewForPosition(endPosition)
                     // TODO: Optimization as add views only when they are visible
-                    addView(child)
                     measureChildWithMargins(child, 0, 0)
+                    addView(child)
                     val childWidth = getDecoratedMeasuredWidth(child)
                     val right = left + childWidth
                     layoutDecorated(child, left, parentTop, right, parentBottom)
@@ -227,11 +262,11 @@ open class LoopingPagerLayoutManager :
         // Calculate the dx in terms of the minimum distance.
         val direction = minDistance.sign
         if (recyclerView.hasFixedSize()) {
-            val childWidth = fixedChildWidth
+            val childWidth = width // The parent width.
             val dx = direction * childWidth
             recyclerView.smoothScrollBy(dx, 0)
         } else {
-            println("Sorry, we don't support smooth scroll for dynamic sized item yet.")
+            Log.v(TAG, "Sorry, we don't support smooth scroll for dynamic sized item yet.")
         }
     }
 
@@ -334,13 +369,13 @@ open class LoopingPagerLayoutManager :
         if (state is SavedState) {
             startPosition = state.startPosition
             endPosition = state.endPosition
-            println("Load saved state, $state")
+            Log.v(TAG, "Load saved state, $state")
 
             // Make sure no pending position and then layout the items.
             pendingStartPosition = RecyclerView.NO_POSITION
             requestLayout()
         } else {
-            println("Invalid state was trying to be restored, $state")
+            Log.v(TAG, "Invalid state was trying to be restored, $state")
         }
     }
 
@@ -393,8 +428,8 @@ open class LoopingPagerLayoutManager :
         val parentRight = width - paddingRight
         val viewsToRecycle = mutableListOf<View>()
 
-        var startPosition = this.startPosition
-        var endPosition = this.endPosition
+        var start = this.startPosition
+        var end = this.endPosition
 
         // Scan from low to high z-order
         for (i in 0 until childCount) {
@@ -405,7 +440,7 @@ open class LoopingPagerLayoutManager :
                 viewsToRecycle.add(child)
 
                 // Shrink the showing range.
-                startPosition = (++startPosition).constrainedBy(itemCount)
+                start = (++start).constrainedBy(itemCount)
             } else {
                 break
             }
@@ -419,7 +454,7 @@ open class LoopingPagerLayoutManager :
                 viewsToRecycle.add(child)
 
                 // Shrink the showing range.
-                endPosition = (--endPosition).constrainedBy(itemCount)
+                end = (--end).constrainedBy(itemCount)
             } else {
                 break
             }
@@ -431,9 +466,9 @@ open class LoopingPagerLayoutManager :
             removeAndRecycleView(view, recycler)
         }
 
-        this.startPosition = startPosition
-        this.endPosition = endPosition
+        this.startPosition = start
+        this.endPosition = end
 
-        println("After recycle offscreen views, first position: $startPosition, end position: $endPosition")
+        Log.v(TAG, "After recycle offscreen views, first position: $startPosition, end position: $endPosition")
     }
 }
